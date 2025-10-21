@@ -1,16 +1,19 @@
 use linera_sdk::{
-    base::{Amount, ApplicationId, ChainId, Owner, WithContractAbi},
-    contract::system_api,
-    graphql::GraphQLMutationRoot,
-    Contract, ViewStateStorage,
+    base::{Amount, Owner}, // Corrected imports
+    abi::WithContractAbi,
+    graphql::GraphQLMutationRoot, // Corrected import
+    views::ViewStateStorage,     // Corrected import
+    contract::system_api,        // Corrected import
+    Contract, ContractAbi, ContractRuntime,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use thiserror::Error;
+use log;
 
 // ABI definition
-#[derive(Root, GraphQLMutationRoot)]
-pub struct AetherwaveAbi;
+#[derive(GraphQLMutationRoot)] // Corrected derive
+pub enum AetherwaveAbi {}        // Corrected to enum
 
 // Error types
 #[derive(Error, Debug)]
@@ -254,7 +257,7 @@ impl Aetherwave {
         }
         
         // For each user with an active bet on this market
-        for (owner, user) in &mut self.users {
+        for (_owner, user) in &mut self.users {
             if let Some(bet) = user.active_bets.get(&market_id) {
                 if (bet.side == BetSide::Yes && outcome) || (bet.side == BetSide::No && !outcome) {
                     // Winning bet - calculate payout
@@ -268,10 +271,9 @@ impl Aetherwave {
                         user.balance = user.balance.saturating_add(user_share);
                     }
                 }
-                
-                // Remove the bet from active bets
-                user.active_bets.remove(&market_id);
             }
+            // Remove the bet from active bets (do this outside the win check)
+            user.active_bets.remove(&market_id);
         }
         
         Ok(())
@@ -293,37 +295,48 @@ impl Aetherwave {
 // Contract implementation
 impl Contract for Aetherwave {
     type Error = AetherwaveError;
-    type Storage = ViewStateStorage<Self>;
     type Message = Message;
-    type Operation = Operation;
-    type ApplicationCall = ();
-    type SessionCall = ();
-    type Parameters = ();
+    type InstantiationArgument = ();
+    type EventValue = ();
+    type Parameters = (); // Added missing type
 
-    async fn new(_context: &linera_sdk::contract::ContractRuntime, _argument: ()) -> Result<Self, Self::Error> {
-        Ok(Aetherwave::default())
+    async fn load(runtime: ContractRuntime<Self>) -> Self {
+        ViewStateStorage::load(runtime.key_value_store())
+            .await
+            .unwrap_or_default()
+    }
+
+    async fn instantiate(&mut self, _argument: Self::InstantiationArgument) {
+        // No custom logic needed, default state is fine
+    }
+
+    async fn store(self) {
+        ViewStateStorage::store(self).await;
     }
 
     async fn execute_operation(
         &mut self,
-        _context: &linera_sdk::contract::ContractRuntime,
-        operation: Self::Operation,
-    ) -> Result<(), Self::Error> {
+        operation: <Self::Abi as ContractAbi>::Operation, // Corrected type
+    ) -> <Self::Abi as ContractAbi>::Response { // Corrected type
         match operation {
             Operation::RegisterUser => {
-                let owner = _context.authenticated_signer().unwrap();
+                let owner = system_api::authenticated_signer()
+                    .ok_or(AetherwaveError::UserNotFound)?; // Handle Option
                 self.register_user(owner)?;
             }
             Operation::Deposit { amount } => {
-                let owner = _context.authenticated_signer().unwrap();
+                let owner = system_api::authenticated_signer()
+                    .ok_or(AetherwaveError::UserNotFound)?; // Handle Option
                 self.deposit(owner, amount)?;
             }
             Operation::CreateMarket { description } => {
-                let creator = _context.authenticated_signer().unwrap();
+                let creator = system_api::authenticated_signer()
+                    .ok_or(AetherwaveError::UserNotFound)?; // Handle Option
                 self.create_market(creator, description)?;
             }
             Operation::PlaceBet { market_id, side, amount } => {
-                let user = _context.authenticated_signer().unwrap();
+                let user = system_api::authenticated_signer()
+                    .ok_or(AetherwaveError::UserNotFound)?; // Handle Option
                 self.place_bet(user, market_id, side, amount)?;
             }
             Operation::ResolveMarket { market_id, outcome } => {
@@ -335,30 +348,41 @@ impl Contract for Aetherwave {
 
     async fn execute_message(
         &mut self,
-        _context: &linera_sdk::contract::ContractRuntime,
         message: Self::Message,
-    ) -> Result<(), Self::Error> {
-        match message {
+    ) {
+        let result = match message {
             Message::RegisterUser { owner } => {
-                self.register_user(owner)?;
+                self.register_user(owner)
             }
             Message::Deposit { owner, amount } => {
-                self.deposit(owner, amount)?;
+                self.deposit(owner, amount)
             }
             Message::CreateMarket { creator, description } => {
-                self.create_market(creator, description)?;
+                self.create_market(creator, description).map(|_| ()) // Discard MarketId
             }
             Message::PlaceBet { user, market_id, side, amount } => {
-                self.place_bet(user, market_id, side, amount)?;
+                self.place_bet(user, market_id, side, amount)
             }
             Message::ResolveMarket { market_id, outcome } => {
-                self.resolve_market(market_id, outcome)?;
+                self.resolve_market(market_id, outcome)
             }
+        };
+
+        if let Err(e) = result {
+            log::error!("Failed to execute message: {:?}", e);
         }
-        Ok(())
     }
 }
 
 impl WithContractAbi for Aetherwave {
-    type Abi = AetherwaveAbi;
+    type Abi = AetherwaveAbi; // Added missing type
+}
+
+// This now holds the types that were in WithContractAbi
+impl ContractAbi for Aetherwave {
+    type Operation = Operation;
+    type ApplicationCall = ();
+    type SessionCall = ();
+    type Response = Result<(), AetherwaveError>;
+    type Event = ();
 }
