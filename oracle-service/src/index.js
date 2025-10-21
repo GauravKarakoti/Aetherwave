@@ -1,5 +1,5 @@
 import express from 'express';
-import WebSocket from 'ws';
+import { WebSocketServer } from 'ws';
 import cron from 'node-cron';
 
 const app = express();
@@ -136,8 +136,7 @@ app.get('/api/events', (req, res) => {
   res.json(events);
 });
 
-// WebSocket for real-time updates
-const wss = new WebSocket.Server({ port: 8080 });
+const wss = new WebSocketServer({ port: 8080 });
 
 wss.on('connection', (ws) => {
   console.log('New WebSocket connection');
