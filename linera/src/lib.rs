@@ -1,19 +1,17 @@
 use linera_sdk::{
-    base::{Amount, Owner}, // Corrected imports
+    linera_base_types::{Amount, Owner},
     abi::WithContractAbi,
-    graphql::GraphQLMutationRoot, // Corrected import
-    views::ViewStateStorage,     // Corrected import
-    contract::system_api,        // Corrected import
-    Contract, ContractAbi, ContractRuntime,
+    graphql::{Enum, GraphQLMutationRoot}, // <-- Added Enum
+    views::storage::ViewStateStorage,
+    system_api,
+    Contract, ContractAbi, ContractRuntime, // <-- Corrected ContractAbi path
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use thiserror::Error;
 use log;
 
-// ABI definition
-#[derive(GraphQLMutationRoot)] // Corrected derive
-pub enum AetherwaveAbi {}        // Corrected to enum
+pub struct AetherwaveAbi;
 
 // Error types
 #[derive(Error, Debug)]
@@ -62,7 +60,7 @@ pub struct Bet {
 // ID types
 pub type MarketId = u64;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Enum)] // <-- ADDED Enum
 pub enum BetSide {
     Yes,
     No,
@@ -110,7 +108,7 @@ pub enum Message {
 }
 
 // Operation types
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, GraphQLMutationRoot)]
 pub enum Operation {
     RegisterUser,
     Deposit {
@@ -377,8 +375,11 @@ impl WithContractAbi for Aetherwave {
     type Abi = AetherwaveAbi; // Added missing type
 }
 
-// This now holds the types that were in WithContractAbi
-impl ContractAbi for Aetherwave {
+impl WithContractAbi for AetherwaveAbi {
+    type Abi = Self;
+}
+
+impl ContractAbi for AetherwaveAbi { // <-- Implement on the ABI enum
     type Operation = Operation;
     type ApplicationCall = ();
     type SessionCall = ();

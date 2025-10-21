@@ -1967,6 +1967,7 @@ dependencies = [
  "async-trait",
  "hex",
  "linera-sdk",
+ "linera-views",
  "log",
  "serde",
  "thiserror",
