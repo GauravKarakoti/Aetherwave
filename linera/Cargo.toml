@@ -12,6 +12,7 @@ hex = "0.4"
 thiserror = "1.0"
 log = "0.4"
 async-graphql = "7.0"
+linera-base = "0.15.4"
 
 [lib]
 crate-type = ["cdylib"]

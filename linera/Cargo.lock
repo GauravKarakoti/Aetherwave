@@ -1966,6 +1966,7 @@ dependencies = [
  "async-graphql",
  "async-trait",
  "hex",
+ "linera-base",
  "linera-sdk",
  "linera-views",
  "log",

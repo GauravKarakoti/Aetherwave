@@ -60,7 +60,7 @@ pub struct Bet {
 // ID types
 pub type MarketId = u64;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Enum)] // <-- ADDED Enum
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Enum)]
 pub enum BetSide {
     Yes,
     No,
