@@ -294,7 +294,6 @@ impl Aetherwave {
 
 // Contract implementation
 impl Contract for Aetherwave {
-    type Error = AetherwaveError;
     type Message = Message;
     type InstantiationArgument = ();
     type EventValue = ();
