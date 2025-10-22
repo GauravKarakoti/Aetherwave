@@ -3,7 +3,7 @@
 echo "🎯 Creating Aetherwave application..."
 
 # Create application instance
-linera project create
+linera project publish-and-create
 
 if [ $? -eq 0 ]; then
     echo "✅ Application created successfully!"
